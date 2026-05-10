@@ -147,10 +147,15 @@ function minimizeDFA(dfa) {
 
   // Map: which original DFA states does each minimized state represent?
   const stateContents = {};
+  let deadState = null;
   for (const p of partitions) {
     const rep = Array.from(p).sort()[0];
     const name = partitionNames.get(rep);
     stateContents[name] = Array.from(p).sort();
+    // If this partition contains the original DEAD state, mark it
+    if (Array.from(p).includes('DEAD')) {
+      deadState = name;
+    }
   }
 
   return {
@@ -160,6 +165,7 @@ function minimizeDFA(dfa) {
     transitions: minTransitions,
     alphabet,
     stateContents,
+    deadState,
   };
 }
 

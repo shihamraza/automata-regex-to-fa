@@ -93,23 +93,42 @@ function buildDFA(nfa) {
     // For each input symbol, compute the next DFA state
     for (const sym of alphabet) {
       const moved = move(closure, sym, nfaTrans);
-      if (moved.size === 0) continue; // dead state — skip (or add explicit dead state)
 
-      const nextClosure = epsilonClosure(moved, nfaTrans);
-      const nextKey = setKey(nextClosure);
-      const nextState = nameFor(nextKey, nextClosure);
+      if (moved.size === 0) {
+        // No NFA states reachable → transition goes to explicit DEAD state
+        if (!dfaTransitions[dfaState]) dfaTransitions[dfaState] = {};
+        dfaTransitions[dfaState][sym] = 'DEAD';
+      } else {
+        const nextClosure = epsilonClosure(moved, nfaTrans);
+        const nextKey = setKey(nextClosure);
+        const nextState = nameFor(nextKey, nextClosure);
 
-      if (!dfaTransitions[dfaState]) dfaTransitions[dfaState] = {};
-      dfaTransitions[dfaState][sym] = nextState;
+        if (!dfaTransitions[dfaState]) dfaTransitions[dfaState] = {};
+        dfaTransitions[dfaState][sym] = nextState;
 
-      if (!visited.has(nextKey)) {
-        visited.add(nextKey);
-        worklist.push({ key: nextKey, closure: nextClosure });
+        if (!visited.has(nextKey)) {
+          visited.add(nextKey);
+          worklist.push({ key: nextKey, closure: nextClosure });
+        }
       }
     }
   }
 
   const dfaStates = Array.from(dfaStateMap.values());
+
+  // Check if any state has a transition to DEAD — if so, add it explicitly
+  const needsDead = dfaStates.some(s =>
+    alphabet.some(sym => dfaTransitions[s]?.[sym] === 'DEAD')
+  );
+
+  if (needsDead) {
+    dfaStates.push('DEAD');
+    // DEAD state loops to itself on every symbol
+    dfaTransitions['DEAD'] = {};
+    for (const sym of alphabet) {
+      dfaTransitions['DEAD'][sym] = 'DEAD';
+    }
+  }
 
   return {
     states: dfaStates,
@@ -117,7 +136,6 @@ function buildDFA(nfa) {
     accepts: Array.from(dfaAccepts),
     transitions: dfaTransitions,
     alphabet,
-    // For educational display: show which NFA states each DFA state represents
     stateContents: dfaStateContents,
   };
 }
