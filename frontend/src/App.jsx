@@ -74,15 +74,48 @@ function Legend() {
         </svg>
         <span>Highlighted (simulation)</span>
       </div>
+
+      <div className="legend-item">
+        <svg width="36" height="36" viewBox="0 0 36 36">
+          <circle cx="18" cy="18" r="13" fill="rgba(127,29,29,0.3)" stroke="#991b1b" strokeWidth="2.5"/>
+          <text x="18" y="20" textAnchor="middle" fill="#f87171" fontSize="8" fontFamily="JetBrains Mono" fontWeight="700">DEAD</text>
+        </svg>
+        <span>Dead / trap state</span>
+      </div>
+
+      <div className="legend-drag">
+        <span className="drag-icon">✥</span>
+        <span>Drag any state node to rearrange</span>
+      </div>
     </div>
   );
 }
 
 // ─── AUTOMATA PANEL ───────────────────────────────────────────────────────────
-function AutomataPanel({ data, type, title, highlightPath, deadState = null }) {
+function AutomataPanel({ data, type, title, highlightPath, deadState = null, hideDeadState = false }) {
   const isNFA = type === 'nfa';
-  const stateCount = data?.states?.length || 0;
-  const acceptCount = isNFA ? (data?.accept ? 1 : 0) : (data?.accepts?.length || 0);
+
+  // Filter out dead state if requested
+  const filteredData = React.useMemo(() => {
+    if (!hideDeadState || !data || !deadState) return data;
+    const filtered = { ...data };
+    filtered.states = data.states.filter(s => s !== deadState);
+    filtered.transitions = {};
+    for (const [from, trans] of Object.entries(data.transitions || {})) {
+      if (from === deadState) continue;
+      filtered.transitions[from] = {};
+      for (const [sym, to] of Object.entries(trans)) {
+        const destinations = Array.isArray(to) ? to : [to];
+        const kept = destinations.filter(d => d !== deadState);
+        if (kept.length > 0)
+          filtered.transitions[from][sym] = Array.isArray(to) ? kept : kept[0];
+      }
+    }
+    return filtered;
+  }, [data, deadState, hideDeadState]);
+
+  const stateCount = filteredData?.states?.length || 0;
+  const acceptCount = isNFA ? (filteredData?.accept ? 1 : 0) : (filteredData?.accepts?.length || 0);
   const badgeClass = type === 'nfa' ? 'badge-nfa' : type === 'dfa' ? 'badge-dfa' : 'badge-min';
   const badgeLabel = type === 'nfa' ? 'NFA' : type === 'dfa' ? 'DFA' : 'MIN-DFA';
 
@@ -98,14 +131,17 @@ function AutomataPanel({ data, type, title, highlightPath, deadState = null }) {
             <span className="stat"><b>{stateCount}</b> states</span>
             <span className="stat-dot"/>
             <span className="stat"><b>{acceptCount}</b> accept</span>
-            {data?.alphabet?.length > 0 && (
-              <><span className="stat-dot"/><span className="stat">Σ = {'{' + data.alphabet.join(', ') + '}'}</span></>
+            {filteredData?.alphabet?.length > 0 && (
+              <><span className="stat-dot"/><span className="stat">Σ = {'{' + filteredData.alphabet.join(', ') + '}'}</span></>
+            )}
+            {hideDeadState && deadState && data.states.includes(deadState) && (
+              <><span className="stat-dot"/><span className="stat" style={{ color: 'var(--amber)', fontStyle: 'italic' }}>dead state hidden</span></>
             )}
           </div>
         )}
       </div>
       <div className="graph-container">
-        <AutomataSVG automata={data} type={type} highlightPath={highlightPath} deadState={deadState} />
+        <AutomataSVG automata={filteredData} type={type} highlightPath={highlightPath} deadState={hideDeadState ? null : deadState} />
       </div>
     </div>
   );
@@ -234,6 +270,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('graphs');
   const [highlightPath, setHighlightPath] = useState([]);
   const [selectedAutomata, setSelectedAutomata] = useState('nfa');
+  const [hideDeadState, setHideDeadState] = useState(false);
 
   const examples = ['(a|b)*abb', 'a*b+', '(0|1)*00', 'ab*c', '(a|b|c)*'];
 
@@ -331,6 +368,15 @@ export default function App() {
                   <option value="dfa">DFA — Deterministic Finite Automaton</option>
                   <option value="minDFA">Min-DFA — Minimized DFA</option>
                 </select>
+                {(selectedAutomata === 'dfa' || selectedAutomata === 'minDFA') && (
+                  <button
+                    className={`dead-toggle ${hideDeadState ? 'dead-toggle-active' : ''}`}
+                    onClick={() => setHideDeadState(v => !v)}
+                    title="Toggle dead/trap state visibility"
+                  >
+                    {hideDeadState ? '◉' : '◎'} {hideDeadState ? 'Dead state hidden' : 'Show dead state'}
+                  </button>
+                )}
               </div>
             </div>
             <div className="single-graph">
@@ -338,10 +384,10 @@ export default function App() {
                 <AutomataPanel data={data?.nfa} type="nfa" title="Nondeterministic Finite Automaton" highlightPath={[]} />
               )}
               {selectedAutomata === 'dfa' && (
-                <AutomataPanel data={data?.dfa} type="dfa" title="Deterministic Finite Automaton" highlightPath={[]} deadState="DEAD" />
+                <AutomataPanel data={data?.dfa} type="dfa" title="Deterministic Finite Automaton" highlightPath={[]} deadState="DEAD" hideDeadState={hideDeadState} />
               )}
               {selectedAutomata === 'minDFA' && (
-                <AutomataPanel data={data?.minDFA} type="minDFA" title="Minimized DFA" highlightPath={highlightPath} deadState={data?.minDFA?.deadState} />
+                <AutomataPanel data={data?.minDFA} type="minDFA" title="Minimized DFA" highlightPath={highlightPath} deadState={data?.minDFA?.deadState} hideDeadState={hideDeadState} />
               )}
             </div>
           </>
@@ -369,9 +415,21 @@ export default function App() {
           <div className="simulate-layout">
             <SimulationPanel minDFA={data?.minDFA} onHighlight={setHighlightPath} />
             <div className="sim-graph-wrap">
-              <Legend />
+              <div className="graph-controls">
+                <Legend />
+                <div className="dropdown-wrap">
+                  <button
+                    className={`dead-toggle ${hideDeadState ? 'dead-toggle-active' : ''}`}
+                    onClick={() => setHideDeadState(v => !v)}
+                    title="Toggle dead/trap state visibility"
+                  >
+                    {hideDeadState ? '◉' : '◎'} {hideDeadState ? 'Dead state hidden' : 'Show dead state'}
+                  </button>
+                </div>
+              </div>
               <AutomataPanel data={data?.minDFA} type="minDFA"
-                title="Minimized DFA — active path highlighted" highlightPath={highlightPath} deadState={data?.minDFA?.deadState} />
+                title="Minimized DFA — active path highlighted" highlightPath={highlightPath}
+                deadState={data?.minDFA?.deadState} hideDeadState={hideDeadState} />
             </div>
           </div>
         )}

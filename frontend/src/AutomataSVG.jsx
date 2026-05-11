@@ -294,11 +294,7 @@ export default function AutomataSVG({ automata, type, highlightPath = [], deadSt
         );
       })}
 
-      {/* Subtle drag hint */}
-      <text x="300" y="395" textAnchor="middle"
-        fill="#1a2a3a" fontSize="10" fontFamily="'DM Sans', sans-serif">
-        drag states to rearrange
-      </text>
+
     </svg>
   );
 }

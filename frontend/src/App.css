@@ -364,3 +364,47 @@ html, body, #root {
 .single-graph .automata-panel {
   height: 100%;
 }
+
+/* ── DEAD STATE TOGGLE ── */
+.dead-toggle {
+  background: var(--surf2);
+  border: 1.5px solid var(--border2);
+  border-radius: 8px;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 8px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dead-toggle:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(245,158,11,0.07);
+}
+.dead-toggle-active {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(245,158,11,0.10);
+}
+.legend-drag {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--blue);
+  background: rgba(96,165,250,0.08);
+  border: 1px dashed rgba(96,165,250,0.3);
+  border-radius: 6px;
+  padding: 5px 12px;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+.drag-icon {
+  font-size: 15px;
+  opacity: 0.85;
+}
